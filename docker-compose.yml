@@ -23,7 +23,7 @@ services:
     container_name: nginx_proxy
     restart: unless-stopped
     ports:
-      - "8050:8080" # puerto 80 en producción
+      - "80:8080" # puerto 80 en producción
       - "443:443" # Si configuras SSL
     depends_on:
       - api
@@ -31,24 +31,21 @@ services:
       - fastapi_network
 
   # Base de datos PostgreSQL (opcional)
-
-  db:
-    image: postgres:15
-    container_name: laravel-postgres
-    restart: always
-    environment:
-      POSTGRES_DB: fastapi
-      POSTGRES_USER: fastapi
-      POSTGRES_PASSWORD: secret
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/
-    networks:
-      - fastapi_network
-  
-
-
+  #
+  # db:
+  #   image: postgres:15
+  #   container_name: laravel-postgres
+  #   restart: always
+  #   environment:
+  #     POSTGRES_DB: fastapi
+  #     POSTGRES_USER: fastapi
+  #     POSTGRES_PASSWORD: secret
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data/
+  #   networks:
+  #     - fastapi_network
 
 volumes:
   postgres_data:

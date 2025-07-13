@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   api:
     build:
@@ -47,8 +45,8 @@ services:
   #   networks:
   #     - fastapi_network
 
-volumes:
-  postgres_data:
+#volumes:
+  #postgres_data:
 
 networks:
   fastapi_network:

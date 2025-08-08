@@ -1,10 +1,9 @@
-from pydantic import BaseModel, model_validator, field_validator
-from pydantic import StrictInt
-from typing import Any
+from pydantic import BaseModel
+
 
 class RecoveryDto(BaseModel):
     correo: str
 
 
-    
-
+class RecoveryUpdateDto(BaseModel):
+    password: str

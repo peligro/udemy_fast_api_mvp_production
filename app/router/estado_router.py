@@ -1,35 +1,37 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, status, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from sqlmodel import Session
-from sqlalchemy import desc
-from utilidades.seguridad import get_current_user
-
 
 from database import get_session
-from interfaces.interfaces import GenericInterface, UsuarioResponse
+from sqlmodel import Session
 from models.models import Estado
+from sqlalchemy import desc
+
+from interfaces.interfaces import GenericInterface, UsuarioResponse
 from .dto.estado_dto import EstadoDto
+from utilidades.seguridad import get_current_user
 
 
 router = APIRouter(prefix="/estado", tags=["Estado"])
 
+
 @router.get("/", response_model=list[Estado])
-async def index(session: Session = Depends(get_session), current_user: UsuarioResponse = Depends(get_current_user)):
+async def index(session: Session=Depends(get_session), current_user: UsuarioResponse = Depends(get_current_user)):
+    print(current_user)
     #datos = session.query(Estado).all()
-    #print(current_user)
     datos = session.query(Estado).order_by(desc(Estado.id)).all()
     return JSONResponse(
         status_code=status.HTTP_200_OK,
-        content=[estado.model_dump() for estado in datos],
-    )  
+        content=[dato.model_dump() for dato in datos]
+    )
+
 
 @router.get("/{id}", response_model=Estado)
-async def show(id: int, session: Session = Depends(get_session), _: UsuarioResponse = Depends(get_current_user)):
+async def show(id:int, session: Session=Depends(get_session), _: UsuarioResponse = Depends(get_current_user)):
     dato = session.get(Estado, id)
     if not dato:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"estado": "error", "mensaje": "Recurso no disponible"}
+            detail="Recurso no disponible"
         )
     return JSONResponse(
         status_code=status.HTTP_200_OK,
@@ -37,121 +39,85 @@ async def show(id: int, session: Session = Depends(get_session), _: UsuarioRespo
     )
 
 
-
 @router.post("/", response_model=GenericInterface)
-async def create(dto: EstadoDto, session: Session = Depends(get_session), _: UsuarioResponse = Depends(get_current_user)):
-    # Personaliza el nombre antes de guardarlo
+async def create(dto: EstadoDto, session: Session=Depends(get_session), _: UsuarioResponse = Depends(get_current_user)):
+    #personalizar el nombre antes de guardarlo
     dto.nombre = f"{dto.nombre}"
-    # 👇 Validación antes de entrar al try
-    existe = session.query(Estado).filter(Estado.nombre == dto.nombre).first()
+    #validación antes de entra al try para que no se repita el nombre
+    #select * from estado where nombre='dto.nombre'
+    existe = session.query(Estado).filter(Estado.nombre==dto.nombre).first()
     if existe:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"estado": "error", "mensaje": "Ya existe un estado con ese nombre"}
+            detail="Ocurrió un error inesperado (Ya existe un estado con este nombre)"
         )
+    #se crea el registro
     try:
-        estado_db = Estado(**dto.model_dump())
-        
-        session.add(estado_db)
+        data_db = Estado(**dto.model_dump())
+        session.add(data_db)
         session.commit()
-        session.refresh(estado_db)
-
-        return JSONResponse(
-            status_code=status.HTTP_201_CREATED,
-            content={"estado": "ok", "mensaje": "Se crea el registro exitosamente"},
-        )
-
-    except Exception as e:
-        session.rollback()  # Revierte cualquier cambio pendiente
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"estado": "error", "mensaje": "Ocurrió un error al crear el registro", "detalle": str(e)}
-        )
-
-"""
-@router.post("/", response_model=GenericInterface)
-async def create(dto: EstadoDto, session: Session = Depends(get_session)):
-    # Personaliza el nombre antes de guardarlo
-    dto.nombre = f"{dto.nombre}"
-    try:
-        estado_db = Estado(**dto.model_dump())
+        session.refresh(data_db)
         
-        session.add(estado_db)
-        session.commit()
-        session.refresh(estado_db)
-
         return JSONResponse(
-            status_code=status.HTTP_201_CREATED,
-            content={"estado": "ok", "mensaje": "Se crea el registro exitosamente"},
-        )
-
-    except Exception as e:
-        session.rollback()  # Revierte cualquier cambio pendiente
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"estado": "error", "mensaje": "Ocurrió un error al crear el registro", "detalle": str(e)}
-        )
-"""
-
-"""
-@router.post("/", response_model=GenericInterface)
-async def create(dto: EstadoDto, session: Session = Depends(get_session)):
-    # Personaliza el nombre antes de guardarlo
-    dto.nombre = f"{dto.nombre}_lindo"
-    estado_db = Estado(**dto.model_dump())
-    
-    session.add(estado_db)
-    session.commit()
-    session.refresh(estado_db)
-    return JSONResponse(
         status_code=status.HTTP_201_CREATED,
-        content={"estado": "ok", "mensaje": f"Se crea el registro exitosamente"},
-    )  
+        content={"estado":"ok", "mensaje":"Se crea el registro exitosamente"}
+        )
+    
+    
+    except:
+        session.rollback() #Revierte cualquier cambio pendiente
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ocurrió un error inesperado (algo se rompió, ya sea la bd)"
+        )
 
-"""
 
 @router.put("/{id}", response_model=GenericInterface)
-async def update(id: int, dto: EstadoDto, session: Session = Depends(get_session), _: UsuarioResponse = Depends(get_current_user)):
+async def update(id: int, dto:EstadoDto, session: Session=Depends(get_session), _: UsuarioResponse = Depends(get_current_user)):
     dato = session.get(Estado, id)
     if not dato:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"estado": "error", "mensaje": "Recurso no disponible"}
+            detail="Recurso no disponible"
         )
     try:
-        dato.nombre = dto.nombre
+        dato.nombre= dto.nombre
 
         session.commit()
         session.refresh(dato)
+        
         return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content= {"estado": "ok", "mensaje": f"Se modifica el registro exitosamente"},
+        status_code=status.HTTP_200_OK,
+        content={"estado":"ok", "mensaje":"Se modifica el registro exitosamente"}
         )
     except Exception as e:
-        session.rollback()  # Revierte cualquier cambio pendiente
+        session.rollback() #Revierte cualquier cambio pendiente
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"estado": "error", "mensaje": "Ocurrió un error inesperado" }
+            detail="Ocurrió un error inesperado (algo se rompió, ya sea la bd)"
         )
 
+
 @router.delete("/{id}", response_model=GenericInterface)
-async def destroy(id: int, session: Session = Depends(get_session)):
+async def destroy(id: int, session: Session=Depends(get_session), _: UsuarioResponse = Depends(get_current_user)):
     dato = session.get(Estado, id)
     if not dato:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"estado": "error", "mensaje": "Recurso no disponible"}
+            detail="Recurso no disponible"
         )
     try:
+        
         session.delete(dato)
         session.commit()
+        
+        return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={"estado":"ok", "mensaje":"Se elimina el registro exitosamente"}
+        )
     except Exception as e:
-        session.rollback()
+        session.rollback() #Revierte cualquier cambio pendiente
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"estado": "error", "mensaje": "Ocurrió un error inesperado" }
+            detail="Ocurrió un error inesperado (algo se rompió, ya sea la bd)"
         )
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content= {"estado": "ok", "mensaje": f"Se elimina el registro exitosamente"},
-    )  

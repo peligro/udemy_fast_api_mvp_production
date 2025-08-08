@@ -1,15 +1,18 @@
-from fastapi import APIRouter, Query, Form, File, UploadFile, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, status, Form, UploadFile, Query
+from fastapi.responses import JSONResponse, FileResponse
 from typing import Annotated
-import boto3
 import uuid
+import os
+import boto3
+
+#dotenv
 from dotenv import load_dotenv
 load_dotenv()
-import os
 
 router = APIRouter(prefix="/upload", tags=["Subir archivos"])
 
-# Cliente S3 apuntando a LocalStack
+
+#cliente S3 apuntando a localstack
 s3_client = boto3.client(
     "s3",
     region_name=os.getenv('AWS_REGION'),
@@ -17,165 +20,162 @@ s3_client = boto3.client(
     aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
     endpoint_url=os.getenv('AWS_SECRET_ACCESS_URL')
 )
+S3_BUCKET_NAME=os.getenv('S3_BUCKET_NAME')
 
-S3_BUCKET_NAME = "curso-udemy"
 
+#subiendo archivo al servidor
 @router.post("/")
-async def create(producto_id: Annotated[int, Form()], file: UploadFile):
-    extension = None
-    if file.content_type == "image/jpeg":
-        extension = "jpg"
-    elif file.content_type == "image/png":
-        extension = "png"
-    else:
+async def subir( negocio_id: Annotated[int, Form()], file: UploadFile ):
+    #print(file)
+    extesion="0"
+    if file.content_type=="image/jpeg":
+        extesion="jpg"
+    if file.content_type=="image/png":
+        extesion="png"
+    if extesion=="0":
         return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"error": "BAD REQUEST", "mensaje": "Formato de imagen no permitido"},
-        )
-
-    nombre = f"{uuid.uuid4()}.{extension}"
-
-    try:
-        s3_client.upload_fileobj(
-            file.file,
-            S3_BUCKET_NAME,
-            f"archivos/{nombre}",
-            ExtraArgs={"ContentType": file.content_type}
-        )
-    except Exception as e:
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"error": "INTERNAL SERVER ERROR", "mensaje": "Error al subir archivo a S3", "detalle": str(e)},
-        )
-
-    file_url = f"http://localhost:8000/{S3_BUCKET_NAME}/archivos/{nombre}"
-
-    return JSONResponse(
-        status_code=status.HTTP_201_CREATED,
-        content={
-            "producto_id": producto_id,
-            "original_name": file.filename,
-            "saved_name": nombre,
-            "mimetype": file.content_type,
-            "url": file_url
-        },
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"estado":"error", "mensaje":f"Ocurrió un error inesperado (no cumple con el formato)"}
     )
+    else:
+        #generar un nombre único
+        nombre = f"{uuid.uuid4()}.{extesion}"
+        try:
+            s3_client.upload_fileobj(
+                file.file,
+                S3_BUCKET_NAME,
+                f"archivos/{nombre}",
+                ExtraArgs={"ContentType": file.content_type}
+            )
+        except Exception as e:
+            return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"estado":"error", "mensaje":f"Ocurrió un error inesperado (Error al subir el archivo a S3) | detalle={str(e)}"}
+        )
+        file_url=f"http://localhost:8000/{S3_BUCKET_NAME}/archivos/{nombre}"
+        #retornamos una respuesta
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={"estado":"ok", "mensaje":f"Método post | negocio_id={negocio_id}", "filename":file.filename, "size":file.size, "mimetype":file.content_type, "nombre":nombre, "url":file_url}
+        )
 
 
+#eliminar recurso del bucket S3
 @router.delete("/file")
-async def delete_file(file_name: str = Query(..., description="Nombre del archivo a borrar")):
+async def ejemplo_foto(file_name: str = Query(..., descripction="Nombre del archivo a borrar")):
+    #preguntamos si existe el recurso en el bucket
     try:
         s3_client.head_object(Bucket=S3_BUCKET_NAME, Key=f"archivos/{file_name}")
     except s3_client.exceptions.ClientError as e:
-        if e.response['Error']['Code'] == '404':
+        if e.response['Error']['Code']=='404':
             return JSONResponse(
-                status_code=status.HTTP_404_NOT_FOUND,
-                content={"error": "NOT FOUND", "mensaje": "El archivo no existe en S3"}
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"estado":"error", "mensaje":f"Ocurrió un error inesperado (El archivo no existe en el bucket)"}
             )
         else:
             return JSONResponse(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                content={"error": "BAD REQUEST", "mensaje": "Error al verificar el archivo", "detalle": str(e)}
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"estado":"error", "mensaje":f"Ocurrió un error inesperado (Error al verificar el archivo)"}
             )
-
+    #borrar el archivo
     try:
         s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=f"archivos/{file_name}")
-    except Exception as e:
+    except:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={"error": "BAD REQUEST", "mensaje": "Error al borrar archivo de S3", "detalle": str(e)},
-        )
-
+            content={"estado":"error", "mensaje":f"Ocurrió un error inesperado (Error al borrar el archivo)"}
+            )
+    
     return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content={"estado": "ok", "mensaje": f"Archivo {file_name} borrado correctamente"}
-    )
+            status_code=status.HTTP_200_OK,
+            content={"estado":"ok", "mensaje":f"Se borra el archivo exitosamente"}
+            )
+
 
 """
-#subiendo archivos al servidor
+#subiendo archivo al servidor
 @router.post("/")
-async def create(producto_id: Annotated[int, Form()], file: UploadFile):
-    extension="0"
+async def subir( negocio_id: Annotated[int, Form()], file: UploadFile ):
+    #print(file)
+    extesion="0"
     if file.content_type=="image/jpeg":
-        extension="jpg"
+        extesion="jpg"
     if file.content_type=="image/png":
-        extension="png"
-    if extension=="0": 
+        extesion="png"
+    if extesion=="0":
         return JSONResponse(
-        status_code=status.HTTP_404_NOT_FOUND,
-        content= {"error": "BAD REQUEST", "mensaje": "Ocurrió un error inesperado"},
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"estado":"error", "mensaje":f"Ocurrió un error inesperado (no cumple con el formato)"}
     )
     else:
-         # Generar un nombre único
-        nombre = f"{uuid.uuid4()}.{extension}"
-        file_location = os.path.join("uploads", nombre)
-        # Guardar archivo en disco
+        #generar un nombre único
+        nombre = f"{uuid.uuid4()}.{extesion}"
+        file_location= os.path.join("uploads", nombre)
+        #guardar el archivo en disco
         with open(file_location, "wb") as buffer:
             buffer.write(await file.read())
+        #retornamos una respuesta
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
-            content= {"producto_id": producto_id, "filename": file.filename, "size": file.size, "mimetype": file.content_type, "nombre": nombre},
-        ) 
+            content={"estado":"ok", "mensaje":f"Método post | negocio_id={negocio_id}", "filename":file.filename, "size":file.size, "mimetype":file.content_type, "nombre":nombre}
+        )
+"""
 
-#Renderización archivo con FileResponse y querystring
-#http://127.0.0.1:8090/upload/file?id=d9ccd8e3-cd1d-4972-9599-e29177d710ad.jpg
-@router.get("/file", status_code=status.HTTP_200_OK)
-async def ejemplo_foto(id: str = Query(..., description="Nombre del archivo")):
+
+#renderización dinámica archivo con FileResponse y querystring
+@router.get("/file")
+async def ejemplo_foto(id: str = Query(..., descripction="Nombre del archivo")):
     if not os.path.exists(f"uploads/{id}"):
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
-            content= {"estado": "error", "mensaje":"Recurso no disponible"},
-        ) 
+            content={"estado":"error", "mensaje":f"Ocurrió un error inesperado (archivo no existe)"}
+        )
     return FileResponse(f"uploads/{id}")
-"""
+
 
 """
-#validar mimetype de archivo a subir
+#validar el tipo de archivo con mimetype
 @router.post("/")
-async def create(producto_id: Annotated[int, Form()], file: UploadFile):
-    extension="0"
+async def subir( negocio_id: Annotated[int, Form()], file: UploadFile ):
+    #print(file)
+    extesion="0"
     if file.content_type=="image/jpeg":
-        extension="jpg"
+        extesion="jpg"
     if file.content_type=="image/png":
-        extension="png"
-    if extension=="0": 
+        extesion="png"
+    if extesion=="0":
         return JSONResponse(
-        status_code=status.HTTP_404_NOT_FOUND,
-        content= {"error": "BAD REQUEST", "mensaje": "Ocurrió un error inesperado"},
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"estado":"error", "mensaje":f"Ocurrió un error inesperado (no cumple con el formato)"}
     )
     else:
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
-            content= {"producto_id": producto_id, "filename": file.filename, "size": file.size, "mimetype": file.content_type},
-        ) 
-
+            content={"estado":"ok", "mensaje":f"Método post | negocio_id={negocio_id}", "filename":file.filename, "size":file.size, "mimetype":file.content_type}
+        )
 """
 
+
 """
-#Recibiendo archivo vía FormData con UploadFile
+#recibir valor formdata y de tipo file
 @router.post("/")
-async def create(producto_id: Annotated[int, Form()], file: UploadFile):
+async def subir( negocio_id: Annotated[int, Form()], file: UploadFile ):
+    #print(file)
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
-        content= {"producto_id": producto_id, "filename": file.filename, "size": file.size, "mimetype": file.content_type},
-    )  
-"""
-"""
-#recibiendo formdata
-@router.post("/")
-async def create(producto_id: Annotated[int, Form()]):
-    return JSONResponse(
-        status_code=status.HTTP_201_CREATED,
-        content= {"estado": "ok", "mensaje": f"Método POST upload | username={producto_id}"},
-    ) 
+        content={"estado":"ok", "mensaje":f"Método post | negocio_id={negocio_id}", "filename":file.filename, "size":file.size, "mimetype":file.content_type}
+    )
 """
 
 
 """
+#recibir valores formdata
 @router.post("/")
-def create():
+async def subir( negocio_id: Annotated[int, Form()] ):
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
-        content= {"estado": "ok", "mensaje": f"Método POST upload"},
-    ) 
+        content={"estado":"ok", "mensaje":f"Método post | negocio_id={negocio_id}"}
+    )
 """
+
+

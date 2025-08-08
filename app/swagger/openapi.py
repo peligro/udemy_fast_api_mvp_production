@@ -3,15 +3,13 @@
 
 from fastapi.openapi.utils import get_openapi
 from fastapi.security import OAuth2PasswordBearer
-from fastapi import Depends, Request
-from fastapi.responses import HTMLResponse
 
 # Esquema de seguridad
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 # Descripción general de la API
 DESCRIPTION = """
-API Rest creada desde Tamila.cl para UDEMY. 🚀  
+API Rest creada desde cesarcancino.com para UDEMY. 🚀  
 Se hizo con mucho cariño
 """
 
@@ -85,5 +83,4 @@ def custom_openapi(app):
         return app.openapi_schema
 
     return generate_openapi
-
 

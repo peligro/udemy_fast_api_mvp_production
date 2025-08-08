@@ -1,22 +1,19 @@
 from pydantic import BaseModel
 
+
 class GenericInterface(BaseModel):
-    estado: str
+    estado:  str
     mensaje: str
 
 
-class NegocioResponse(BaseModel):
+class NegocioInterface(BaseModel):
     id: int
     nombre: str
     logo: str
     mapa: str
-    facebook: str
-    descripcion: str
-    instagram: str
-    twitter: str
+    descripcion: str 
     slug: str
     correo: str
-    tiktok: str
     telefono: str
     estado_id: int
     estado: str
@@ -31,44 +28,36 @@ class NegocioResponse(BaseModel):
         from_attributes = True
 
 
-
-
-
-
 class PlatoResponse(BaseModel):
     id: int
     nombre: str
     ingredientes: str
     precio: int
     foto: str
-    platoscategoria: str 
+    platoscategoria: str
 
     class Config:
         from_attributes = True
 
 
-class NegocioSlugResponse(BaseModel):
+class NegociosSlugResponse(BaseModel):
     id: int
-    nombre: str
-    logo: str
-    mapa: str
-    facebook: str
-    descripcion: str
-    instagram: str
-    twitter: str
-    slug: str
-    correo: str
-    tiktok: str
-    telefono: str
+    nombre :str
+    logo :str
+    mapa :str
+    descripcion :str
+    slug :str
+    correo :str
+    telefono :str
     estado_id: int
-    estado: str
+    estado :str
     usuario_id: int
-    usuario: str
+    usuario :str
     categoria_id: int
-    categoria: str
-    direccion: str
-    fecha: str
-    platos: list[PlatoResponse] 
+    categoria :str
+    direccion :str
+    fecha :str
+    platos: list[PlatoResponse]
 
     class Config:
         from_attributes = True
@@ -81,19 +70,15 @@ class UsuarioResponse(BaseModel):
     telefono: str
     estado_id: int
     estado: str
-    perfil_id: int
+    perfil_id:int
     perfil: str
-    fecha: str 
+    fecha: str
 
     class Config:
         from_attributes = True
-
 
 
 class LoginResponse(BaseModel):
     estado: str
     mensaje: str
     data: dict | None = None
-
-
-
